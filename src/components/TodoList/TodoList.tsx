@@ -1,28 +1,35 @@
-/* eslint-disable */
-import React, { useEffect } from 'react';
+import React, { useMemo } from 'react';
 import { useAppSelector } from '../../app/hooks';
 import { useDispatch } from 'react-redux';
 import { AppDispatch } from '../../app/store';
-import { getTodos } from '../../api';
-import { todosSlice } from '../../features/todos';
 import { currentTodoSlice } from '../../features/currentTodo';
-import { isLoadingSlice } from '../../features/isLoading';
 
 export const TodoList: React.FC = () => {
   const todos = useAppSelector(state => state.todos);
+  const { query, status } = useAppSelector(state => state.filter);
   const currentTodo = useAppSelector(state => state.currentTodo);
   const dispatch = useDispatch<AppDispatch>();
 
-  useEffect(() => {
-    dispatch(isLoadingSlice.actions.setIsLoading(true));
-    getTodos()
-      .then(todos => dispatch(todosSlice.actions.setTodos(todos)))
-      .finally(() => dispatch(isLoadingSlice.actions.setIsLoading(false)));
-  }, []);
+  const visibleTodos = useMemo(() => {
+    return todos.filter(todo => {
+      const matchesStatus =
+        status === 'all'
+          ? true
+          : status === 'active'
+            ? !todo.completed
+            : todo.completed;
+
+      const matchesQuery = todo.title
+        .toLowerCase()
+        .includes(query.toLowerCase());
+
+      return matchesStatus && matchesQuery;
+    });
+  }, [todos, query, status]);
 
   return (
     <>
-      {!todos ? (
+      {visibleTodos.length === 0 ? (
         <p className="notification is-warning">
           There are no todos matching current filter criteria
         </p>
@@ -31,21 +38,19 @@ export const TodoList: React.FC = () => {
           <thead>
             <tr>
               <th>#</th>
-
               <th>
                 <span className="icon">
                   <i className="fas fa-check" />
                 </span>
               </th>
-
               <th>Title</th>
               <th> </th>
             </tr>
           </thead>
 
           <tbody>
-            {todos.map(todo => (
-              <tr data-cy="todo" className="" key={todo.id}>
+            {visibleTodos.map(todo => (
+              <tr data-cy="todo" key={todo.id}>
                 <td className="is-vcentered">{todo.id}</td>
                 <td className="is-vcentered">
                   {todo.completed && (
